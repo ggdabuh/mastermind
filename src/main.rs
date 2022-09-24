@@ -1,6 +1,5 @@
 use std::io;
 use std::cmp;
-//use std::cmp::Ordering;
 use std::time::Instant;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -80,23 +79,20 @@ fn calc_min_eliminated(rows: & Vec<Vec<u32>>, row: &Vec<u32>, value_count: u32) 
     return min_eliminated;
 }
 
-/*fn best(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
-
-    let mut best = calc_min_eliminated(rows, &rows[0], value_count);
-    return rows.iter().max_by( |_lhs ,rhs| {
-        let n = calc_min_eliminated(rows, rhs, value_count);
-        if best < n {
-            best = n;
-            return Ordering::Less;
-        } else {
-            return Ordering::Greater;
-        }
-    }).unwrap();
-}*/
+// fn best(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
+//     let mut best: (u32, Option<&Vec<u32>>) = (0, None);
+//     for row in rows {
+//         let n = calc_min_eliminated(rows, row, value_count);
+//         if best.0 < n {
+//             best = (n, Some(&row));
+//         }
+//     }
+//     return best.1.unwrap();
+// }
 
 fn best2(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
 
-    let best : (u32, Option<&Vec<u32>>) = (value_count.pow(0_u32), None);
+    let best : (u32, Option<&Vec<u32>>) = (0_u32, None);
 
     let data = Arc::new(Mutex::new(best));
     rows.par_iter().for_each(|row| {
