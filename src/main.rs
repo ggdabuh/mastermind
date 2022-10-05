@@ -62,51 +62,62 @@ fn filter(rows: & mut Vec<Vec<u32>>, crit: &Vec<u32>, w: u32, b: u32, value_coun
 
 fn calc_min_eliminated(rows: & Vec<Vec<u32>>, row: &Vec<u32>, value_count: u32) -> u32 {
 
-    let mut min_eliminated = value_count.pow(row.len() as u32);
-    for b in 0_u32..value_count {
-        for w in 0_u32..(value_count - b) {
+    return (0_u32..value_count).map(|b|{
+         return (0_u32..(value_count - b)).map(move |w| {
             if w == 1 && b == (row.len() as u32) - 1 {
-                continue;
+                return u32::MAX;
             }
-            let removed = rows.iter().filter(|r| {
+            let matching = rows.iter().filter(|r| {
                 let (b2, w2) = count_white_blacks(r, &row, value_count);
                 return b == b2 && w == w2;
               }).count();
-            let score =  (rows.len() - removed) as u32;
-            min_eliminated = cmp::max(score, min_eliminated);
+            return (rows.len() - matching) as u32;
+        });
+    }).flatten().min().unwrap();
+
+}
+
+#[allow(dead_code)]
+fn best(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
+    let mut best: (u32, Option<&Vec<u32>>) = (0, None);
+    for row in rows {
+        let n = calc_min_eliminated(rows, row, value_count);
+        if best.0 < n {
+            best = (n, Some(&row));
         }
     }
-    return min_eliminated;
+    return best.1.unwrap();
 }
 
-// fn best(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
-//     let mut best: (u32, Option<&Vec<u32>>) = (0, None);
-//     for row in rows {
-//         let n = calc_min_eliminated(rows, row, value_count);
-//         if best.0 < n {
-//             best = (n, Some(&row));
-//         }
-//     }
-//     return best.1.unwrap();
-// }
-
+#[allow(dead_code)]
 fn best2(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
 
-    let best : (u32, Option<&Vec<u32>>) = (0_u32, None);
-
+    let best: (u32, Option<&Vec<u32>>) = (0, None);
     let data = Arc::new(Mutex::new(best));
     rows.par_iter().for_each(|row| {
-        let n = calc_min_eliminated(rows, &row, value_count);
-        let mut data = data.lock().unwrap();
-        let (n2, _) = *data;
-        if n > n2 {
-            *data = (n, Some(&row));
-        }
-    });
-    let data = data.lock().unwrap();
-    let (_, row) = *data;
-    return row.unwrap();
+         let n = calc_min_eliminated(rows, &row, value_count);
+         let mut data = data.lock().unwrap();
+         let (n2, _) = *data;
+         if n > n2 {
+             *data = (n, Some(&row));
+         }
+     });
+     let data = data.lock().unwrap();
+     let (_, row) = *data;
+     return row.unwrap();
 }
+ 
+
+#[allow(dead_code)]
+fn best3(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
+     let best = rows.par_iter().map(|row| {
+         let n = calc_min_eliminated(rows, &row, value_count);
+         return (n, row);
+     }).max_by(|x, y| {
+         return x.0.cmp(&y.0); 
+     });
+     return best.unwrap().1;
+ }
 
 fn main() {
     let mut line = String::new();
@@ -128,7 +139,7 @@ fn main() {
     let value_count: u32 = line.trim().parse().expect("Please type a number!");
 
     let mut rows = init_rows(row_size, value_count);
-    let mut row = best2(&rows, value_count).clone();
+    let mut row = best3(&rows, value_count).clone();
     loop {
         println!("{:?}", row);
         line.clear();
@@ -146,7 +157,13 @@ fn main() {
             break;
         }
         let now = Instant::now();
+        // row = best(&rows, value_count).clone();
+        // println!("Running slow_function() took {} ms.", now.elapsed().as_millis());
+        let now = Instant::now();
         row = best2(&rows, value_count).clone();
+        println!("Running slow_function() took {} ms.", now.elapsed().as_millis());
+        let now = Instant::now();
+        row = best3(&rows, value_count).clone();
         println!("Running slow_function() took {} ms.", now.elapsed().as_millis());
     }
     println!("{:?}", row);
