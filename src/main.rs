@@ -62,19 +62,15 @@ fn filter(rows: & mut Vec<Vec<u32>>, crit: &Vec<u32>, w: u32, b: u32, value_coun
 
 fn calc_min_eliminated(rows: & Vec<Vec<u32>>, row: &Vec<u32>, value_count: u32) -> u32 {
 
-    return (0_u32..value_count).map(|b|{
-         return (0_u32..(value_count - b)).map(move |w| {
-            if w == 1 && b == (row.len() as u32) - 1 {
-                return u32::MAX;
-            }
-            let matching = rows.iter().filter(|r| {
-                let (b2, w2) = count_white_blacks(r, &row, value_count);
-                return b == b2 && w == w2;
-              }).count();
-            return (rows.len() - matching) as u32;
-        });
-    }).flatten().min().unwrap();
+    let mut res: Vec<u32> = Vec::new();
+    res.resize((((row.len() + 1) * row.len() + 3) / 2) as usize, rows.len() as u32);
+    for r in rows {
+        let (b, w) = count_white_blacks(r, &row, value_count);
+        let n = row.len() as u32 - b;
+        res[((n * n.wrapping_sub(1)) / 2 + w) as usize] -= 1;
+    }
 
+    return *res.iter().min().unwrap();
 }
 
 #[allow(dead_code)]
@@ -156,15 +152,15 @@ fn main() {
             row = rows[0].clone();
             break;
         }
-        let now = Instant::now();
+        // let now = Instant::now();
         // row = best(&rows, value_count).clone();
-        // println!("Running slow_function() took {} ms.", now.elapsed().as_millis());
+        // println!("Running slow_function() took {} ms.", now.elapsed().as_micros());
         let now = Instant::now();
-        row = best2(&rows, value_count).clone();
-        println!("Running slow_function() took {} ms.", now.elapsed().as_millis());
+        _ = best2(&rows, value_count).clone();
+        println!("Running slow_function() took {} µs.", now.elapsed().as_micros());
         let now = Instant::now();
         row = best3(&rows, value_count).clone();
-        println!("Running slow_function() took {} ms.", now.elapsed().as_millis());
+        println!("Running slow_function() took {} µs.", now.elapsed().as_micros());
     }
     println!("{:?}", row);
 }
