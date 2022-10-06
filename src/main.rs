@@ -1,15 +1,16 @@
 use std::io;
 use std::cmp;
-use std::time::Instant;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 
 const RADIX: u32 = 10;
 
 
-fn init_rows(row_size: usize, value_count: u32) -> Vec<Vec<u32>> {
-    let mut res: Vec<Vec<u32>> = Vec::new();
-    let mut gen: Vec<u32> = Vec::new();
+type Row = Vec<u32>;
+
+fn init_rows(row_size: usize, value_count: u32) -> Vec<Row> {
+    let mut res: Vec<Row> = Vec::new();
+    let mut gen: Row = Row::new();
     gen.resize(row_size, 0);
     res.push(gen.clone());
     let mut i = 0usize;
@@ -29,7 +30,7 @@ fn init_rows(row_size: usize, value_count: u32) -> Vec<Vec<u32>> {
     return res;
 }
 
-fn count_white_blacks(lhs: &[u32], rhs: &Vec<u32>, value_count: u32) -> (u32, u32) {
+fn count_white_blacks(lhs: &[u32], rhs: &Row, value_count: u32) -> (u32, u32) {
     let mut b = 0_u32;
     let mut w = 0_u32;
 
@@ -52,7 +53,7 @@ fn count_white_blacks(lhs: &[u32], rhs: &Vec<u32>, value_count: u32) -> (u32, u3
     return (b, w);
 }
 
-fn filter(rows: & mut Vec<Vec<u32>>, crit: &Vec<u32>, w: u32, b: u32, value_count: u32) {
+fn filter(rows: & mut Vec<Row>, crit: &Row, w: u32, b: u32, value_count: u32) {
 
     rows.retain(|r| {
         let (b2, w2) = count_white_blacks(r, &crit, value_count);
@@ -60,9 +61,9 @@ fn filter(rows: & mut Vec<Vec<u32>>, crit: &Vec<u32>, w: u32, b: u32, value_coun
     });
 }
 
-fn calc_min_eliminated(rows: & Vec<Vec<u32>>, row: &Vec<u32>, value_count: u32) -> u32 {
+fn calc_min_eliminated(rows: & Vec<Row>, row: &Row, value_count: u32) -> u32 {
 
-    let mut res: Vec<u32> = Vec::new();
+    let mut res: Row = Row::new();
     res.resize((((row.len() + 1) * row.len() + 3) / 2) as usize, rows.len() as u32);
     for r in rows {
         let (b, w) = count_white_blacks(r, &row, value_count);
@@ -74,21 +75,20 @@ fn calc_min_eliminated(rows: & Vec<Vec<u32>>, row: &Vec<u32>, value_count: u32) 
 }
 
 #[allow(dead_code)]
-fn best(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
-    let mut best: (u32, Option<&Vec<u32>>) = (0, None);
-    for row in rows {
-        let n = calc_min_eliminated(rows, row, value_count);
-        if best.0 < n {
-            best = (n, Some(&row));
-        }
-    }
-    return best.1.unwrap();
+fn best(rows: & Vec<Row>, value_count: u32) -> &Row {
+    let best = rows.iter().map(|row| {
+        let n = calc_min_eliminated(rows, &row, value_count);
+        return (n, row);
+    }).max_by(|x, y| {
+        return x.0.cmp(&y.0); 
+    });
+    return best.unwrap().1;
 }
 
 #[allow(dead_code)]
-fn best2(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
+fn best2(rows: & Vec<Row>, value_count: u32) -> &Row {
 
-    let best: (u32, Option<&Vec<u32>>) = (0, None);
+    let best: (u32, Option<&Row>) = (0, None);
     let data = Arc::new(Mutex::new(best));
     rows.par_iter().for_each(|row| {
          let n = calc_min_eliminated(rows, &row, value_count);
@@ -105,7 +105,7 @@ fn best2(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
  
 
 #[allow(dead_code)]
-fn best3(rows: & Vec<Vec<u32>>, value_count: u32) -> &Vec<u32> {
+fn best3(rows: & Vec<Row>, value_count: u32) -> &Row {
      let best = rows.par_iter().map(|row| {
          let n = calc_min_eliminated(rows, &row, value_count);
          return (n, row);
@@ -143,7 +143,7 @@ fn main() {
             .read_line(&mut line)
             .expect("Failed to read line");
 
-        let values : Vec<u32> = line.trim().chars().map(
+        let values : Row = line.trim().chars().map(
             |c| c.to_digit(RADIX).unwrap()).collect();
         assert_eq!(values.len(), 2);
 
@@ -152,15 +152,7 @@ fn main() {
             row = rows[0].clone();
             break;
         }
-        // let now = Instant::now();
-        // row = best(&rows, value_count).clone();
-        // println!("Running slow_function() took {} ms.", now.elapsed().as_micros());
-        let now = Instant::now();
-        _ = best2(&rows, value_count).clone();
-        println!("Running slow_function() took {} µs.", now.elapsed().as_micros());
-        let now = Instant::now();
         row = best3(&rows, value_count).clone();
-        println!("Running slow_function() took {} µs.", now.elapsed().as_micros());
     }
     println!("{:?}", row);
 }
